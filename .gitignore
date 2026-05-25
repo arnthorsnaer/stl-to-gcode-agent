@@ -1,3 +1,32 @@
+# macOS
 .DS_Store
+
+# Environment / local credentials
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+secrets/
+credentials/
+config.local.*
+
+# Dependencies / build outputs
+node_modules/
+dist/
+build/
+coverage/
+
+# Runtime scratch/logs
+tmp/
+.temp/
+cache/
+logs/
+*.log
+
+# User/imported model projects and generated G-code
 projects/*
 !projects/.gitkeep
+*.gcode
+*.stl
+*.3mf
