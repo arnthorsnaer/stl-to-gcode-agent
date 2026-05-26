@@ -1,0 +1,369 @@
+{
+  "_generated": true,
+  "_note": "Generated metadata for traceability only. Do not edit. Runtime/user-editable settings live in settings.json and tool-config/.",
+  "name": "stl-to-gcode-agent",
+  "description": "Workflow agent for converting STL/ZIP/Thingiverse inputs into local G-code for a Creality Ender-3 V2 Neo using checked-in PrusaSlicer profiles.",
+  "mission": [
+    "Import local STL/ZIP files or supported URLs.",
+    "Validate and list discovered STL files.",
+    "Slice the selected printable STL with an approved checked-in profile.",
+    "Publish the final G-code to an external destination only when available, then clean processing files and preserve ignored evidence."
+  ],
+  "dependencies": {
+    "externalTools": [
+      {
+        "name": "bun",
+        "purpose": "Run internal scripts.",
+        "required": true,
+        "verify": "bun --version"
+      },
+      {
+        "name": "unzip",
+        "purpose": "List and extract ZIP model archives safely.",
+        "required": true,
+        "verify": "unzip -v"
+      },
+      {
+        "name": "PrusaSlicer CLI",
+        "purpose": "Slice STL to G-code.",
+        "required": true,
+        "verifyAny": [
+          {
+            "name": "PATH",
+            "command": "prusa-slicer --help"
+          },
+          {
+            "name": "PRUSA_SLICER_BIN",
+            "command": "test -n \"$PRUSA_SLICER_BIN\" && \"$PRUSA_SLICER_BIN\" --help"
+          },
+          {
+            "name": "macOS app default",
+            "command": "test -x /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer && /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer --help"
+          }
+        ],
+        "notes": "Supply PrusaSlicer either on PATH as prusa-slicer, via PRUSA_SLICER_BIN, or with --prusa-slicer when running slice/convert."
+      },
+      {
+        "name": "agent-browser",
+        "purpose": "Optional Thingiverse browser fallback when direct ZIP download fails.",
+        "required": false,
+        "verify": "agent-browser --help"
+      }
+    ],
+    "internalTools": [
+      {
+        "name": "convert",
+        "command": "workflow/01A-convert.sh <source>",
+        "purpose": "Step 1A: Preferred one-shot import/list/slice/preview wrapper."
+      },
+      {
+        "name": "import",
+        "command": "workflow/01B-import.sh <source>",
+        "purpose": "Step 1B: Alternate/manual import/download/extract/discover wrapper."
+      },
+      {
+        "name": "list",
+        "command": "workflow/02-list.sh <id>",
+        "purpose": "Step 2: List discovered STLs."
+      },
+      {
+        "name": "slice",
+        "command": "workflow/03-slice.sh <id>",
+        "purpose": "Step 3: Slice selected STL."
+      },
+      {
+        "name": "preview",
+        "command": "workflow/04-preview.sh <id>",
+        "purpose": "Step 4: Regenerate/check G-code previews."
+      }
+    ],
+    "services": [],
+    "localConfig": [],
+    "environmentVariables": [
+      {
+        "name": "PRUSA_SLICER_BIN",
+        "purpose": "Optional override for PrusaSlicer binary path.",
+        "required": false,
+        "containsSecrets": false
+      }
+    ],
+    "filesystemPaths": [
+      {
+        "path": "projects/archive/",
+        "purpose": "Ignored local evidence archive.",
+        "required": true,
+        "gitPolicy": "tracked only as .gitkeep; contents ignored"
+      },
+      {
+        "path": "settings.json:slicer.profileRoot",
+        "purpose": "Checked-in approved PrusaSlicer profiles.",
+        "required": true,
+        "gitPolicy": "tracked"
+      },
+      {
+        "path": "/Volumes/3D_PRINTS",
+        "purpose": "Optional already-mounted external G-code destination.",
+        "required": false,
+        "gitPolicy": "external; do not manage mount"
+      }
+    ],
+    "trackedAssets": [
+      {
+        "path": "settings.json",
+        "purpose": "Editable non-secret workflow settings.",
+        "required": true,
+        "gitPolicy": "tracked"
+      },
+      {
+        "path": ".env.example",
+        "purpose": "Example optional environment variables without values.",
+        "required": true,
+        "gitPolicy": "tracked example only"
+      },
+      {
+        "path": "tools/stl-to-gcode/tool-config/prusa-slicer/ender3-v2-neo/*.ini",
+        "purpose": "Approved PrusaSlicer internal tool config profiles.",
+        "required": true,
+        "gitPolicy": "tracked"
+      }
+    ],
+    "generatedArtifacts": [
+      {
+        "path": "projects/*/todo/",
+        "purpose": "Raw imported model files.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/in-process/",
+        "purpose": "Extracted/intermediate model files and metadata.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/done/",
+        "purpose": "Generated G-code and previews before external publish.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/evidence/",
+        "purpose": "Local job evidence, ignored because it can contain private paths/source URLs.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/archive/*",
+        "purpose": "Archived local evidence after cleanup.",
+        "gitPolicy": "ignored"
+      }
+    ]
+  },
+  "processing": {
+    "projectRoot": "projects",
+    "archiveRoot": "projects/archive",
+    "filesBeingProcessed": {
+      "location": "internal",
+      "internalStages": [
+        "todo",
+        "in-process",
+        "done"
+      ],
+      "neverCommit": true
+    },
+    "evidence": {
+      "enabled": true,
+      "commitPolicy": "ignored by default",
+      "archiveAfterCompletion": true,
+      "files": [
+        "manifest.json",
+        "events.log",
+        "decisions.md",
+        "outputs.json",
+        "cleanup.json"
+      ]
+    },
+    "cleanup": {
+      "afterPublish": true,
+      "removeOrTrashProcessingFiles": true,
+      "preserveEvidenceOnly": true
+    }
+  },
+  "hardBoundaries": [
+    "Do not communicate with the printer.",
+    "Do not mount, unmount, format, erase, or otherwise manage SD cards.",
+    "Do not use OctoPrint.",
+    "Do not build or invent slicing settings dynamically; use checked-in profiles only.",
+    "Never commit model inputs, generated G-code, previews, or private evidence."
+  ],
+  "standardWorkflow": [
+    "Run startup dependency checks.",
+    "Import source into projects/<id>/todo and extract/process under projects/<id>/in-process.",
+    "List discovered STLs and ask the user if more than one printable STL is found.",
+    "Slice with the selected checked-in profile and write G-code/previews to projects/<id>/done.",
+    "If /Volumes/3D_PRINTS is already mounted, copy the final G-code there; otherwise report the local output path.",
+    "After external publish is verified, remove processing files and archive evidence only."
+  ],
+  "fallbackWorkflow": [
+    "If PrusaSlicer is not on PATH, use PRUSA_SLICER_BIN or --prusa-slicer.",
+    "If direct Thingiverse ZIP download fails, use agent-browser fallback when available.",
+    "If browser fallback fails, ask the user to manually download the STL/ZIP and rerun convert."
+  ],
+  "safetyRules": [
+    "Never commit files being processed.",
+    "Use safe ZIP extraction and reject unsafe archive paths.",
+    "Validate STL parseability, geometry, and build volume before slicing.",
+    "Evidence is local and ignored by default."
+  ],
+  "knownLimitations": [
+    "Thingiverse support is best-effort.",
+    "Preview SVGs are sanity checks parsed from G-code and do not replace slicer/printer validation."
+  ],
+  "scaffold": {
+    "copy": [
+      {
+        "from": "../../stl-to-gcode-agent/app/lib",
+        "to": "tools/stl-to-gcode/app/lib"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/app/scripts",
+        "to": "tools/stl-to-gcode/app/cli"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/profiles/ender3-v2-neo",
+        "to": "tools/stl-to-gcode/tool-config/prusa-slicer/ender3-v2-neo"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/package.json",
+        "to": "tools/stl-to-gcode/package.json"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/package-lock.json",
+        "to": "tools/stl-to-gcode/package-lock.json"
+      }
+    ],
+    "createDirs": [
+      "projects",
+      "projects/archive",
+      "workflow",
+      "utilities",
+      "tools"
+    ],
+    "replacements": [
+      {
+        "file": "tools/stl-to-gcode/app/lib/paths.ts",
+        "oldText": "import path from 'node:path';\n\nexport const root = path.resolve(import.meta.dir, '..', '..');\nexport const projectsRoot = path.join(root, 'projects');\nexport const profilesRoot = path.join(root, 'profiles', 'ender3-v2-neo');",
+        "newText": "import fs from 'node:fs';\nimport path from 'node:path';\n\nexport const toolRoot = path.resolve(import.meta.dir, '..', '..');\nexport const workflowRoot = path.resolve(toolRoot, '..', '..');\nconst settings = JSON.parse(fs.readFileSync(path.join(workflowRoot, 'settings.json'), 'utf8')) as { slicer?: { profileRoot?: string } };\nif (!settings.slicer?.profileRoot) throw new Error('missing settings.json:slicer.profileRoot');\nexport const root = workflowRoot;\nexport const projectsRoot = path.join(workflowRoot, 'projects');\nexport const profilesRoot = path.join(workflowRoot, settings.slicer.profileRoot);"
+      },
+      {
+        "file": "tools/stl-to-gcode/package.json",
+        "oldText": "app/scripts/",
+        "newText": "app/cli/"
+      }
+    ],
+    "files": [
+      {
+        "path": "settings.json"
+      },
+      {
+        "path": ".env.example"
+      },
+      {
+        "path": "workflow/01A-convert.sh"
+      },
+      {
+        "path": "workflow/01B-import.sh"
+      },
+      {
+        "path": "workflow/02-list.sh"
+      },
+      {
+        "path": "workflow/03-slice.sh"
+      },
+      {
+        "path": "workflow/04-preview.sh"
+      }
+    ]
+  },
+  "git": {
+    "visibility": "public",
+    "extraIgnore": [
+      "*.gcode",
+      "*.stl",
+      "*.3mf",
+      "*.zip"
+    ]
+  },
+  "customSections": [
+    {
+      "title": "STL workflow details",
+      "content": "Prefer the one-shot command:\n\n```bash\nworkflow/01A-convert.sh <source>\nworkflow/01A-convert.sh <source> --stl <index>\nworkflow/01A-convert.sh <source> --profile pla-fine\n```\n\nIf PrusaSlicer is not on PATH, supply it with either `PRUSA_SLICER_BIN` or `--prusa-slicer /path/to/prusa-slicer`.\n\nIf multiple printable STLs are found, do not guess. Show the list to the user and ask which STL index to use.\n\nAfter a successful slice, report the G-code and preview paths under `projects/<id>/done/`. If the external destination is already available, copy only the final G-code there; do not mount or manage removable media."
+    },
+    {
+      "title": "IDs, settings, and validation",
+      "content": "IDs are intentionally simple:\n\n- Thingiverse URL: `<model-name>-thing-<number>`\n- Local file: sanitized filename without extension\n- Other URL: sanitized URL basename plus a short hash\n\nThe checked-in PrusaSlicer tool config root is defined by `settings.json:slicer.profileRoot`. Do not duplicate that editable path elsewhere.\n\nThe scripts validate STL discovery, ASCII/binary STL parseability, non-empty geometry, build-volume fit, and safe ZIP paths before extraction."
+    },
+    {
+      "title": "Thingiverse behavior",
+      "content": "Thingiverse support is best-effort via the direct ZIP endpoint first. If that returns HTML instead of a ZIP, the importer may fall back to `agent-browser` to click the visible STL download button. If both approaches fail, ask the user to manually download the ZIP/STL and rerun `workflow/01A-convert.sh <downloaded-file>`."
+    }
+  ],
+  "doctor": {
+    "pathSettings": [
+      {
+        "file": "settings.json",
+        "objectPath": "slicer"
+      },
+      {
+        "file": "settings.json",
+        "objectPath": "internalTools.stlToGcode"
+      }
+    ]
+  },
+  "utilityCommands": [
+    {
+      "name": "doctor",
+      "command": "utilities/doctor.sh",
+      "purpose": "Verify workflow dependencies, internal tool root, slicer config, and optional settings."
+    }
+  ],
+  "workflowSteps": [
+    {
+      "step": "0",
+      "title": "Verify dependencies and settings",
+      "command": "utilities/doctor.sh",
+      "description": "Run this before operating the workflow. Fix missing required dependencies before continuing."
+    },
+    {
+      "step": "1A",
+      "title": "Preferred one-shot conversion",
+      "command": "workflow/01A-convert.sh <source>",
+      "description": "Preferred path: import, list, slice, and preview in one command."
+    },
+    {
+      "step": "1B",
+      "title": "Manual import path",
+      "command": "workflow/01B-import.sh <source>",
+      "description": "Alternate path when the user wants import/list/slice separated."
+    },
+    {
+      "step": "2",
+      "title": "List discovered STLs",
+      "command": "workflow/02-list.sh <id>",
+      "description": "List discovered STL files and printability. If multiple printable STLs exist, ask the user which index to use."
+    },
+    {
+      "step": "3",
+      "title": "Slice selected STL",
+      "command": "workflow/03-slice.sh <id> [--stl <index>] [--profile pla-normal]",
+      "description": "Slice the selected STL with an approved profile."
+    },
+    {
+      "step": "4",
+      "title": "Generate/check previews",
+      "command": "workflow/04-preview.sh <id>",
+      "description": "Regenerate/check SVG previews from generated G-code."
+    },
+    {
+      "step": "5",
+      "title": "Publish, clean up, and archive evidence",
+      "description": "LLM-operated judgment step: if an external destination is already available, copy final G-code there, verify it exists, remove/trash processing files, and preserve/archive evidence only."
+    }
+  ]
+}

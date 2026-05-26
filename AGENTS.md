@@ -1,202 +1,259 @@
-# STL to G-code Agent — Operating Notes
+# stl-to-gcode-agent — Agent Operating Guide
 
-This directory intentionally uses small Bun scripts under `app/scripts/`, not a compiled Node app.
+Workflow agent for converting STL/ZIP/Thingiverse inputs into local G-code for a Creality Ender-3 V2 Neo using checked-in PrusaSlicer profiles.
 
-## Purpose
+## Mission
 
-Create local `.gcode` files for a Creality Ender-3 V2 Neo from:
+- Import local STL/ZIP files or supported URLs.
+- Validate and list discovered STL files.
+- Slice the selected printable STL with an approved checked-in profile.
+- Publish the final G-code to an external destination only when available, then clean processing files and preserve ignored evidence.
 
-- local `.stl`
-- local `.zip`
-- direct `.stl`/`.zip` URL
-- Thingiverse URL, with ZIP endpoint first and headless `agent-browser` fallback when needed
+## Dependencies
 
-The agent creates local `.gcode` files and, when the `3D_PRINTS` volume is already mounted, may copy the final `.gcode` there for the user.
+All dependencies are explicit. Internal and external tools are both first-class dependencies. Secret-bearing config must come from untracked local files or environment variables.
+
+### External tools
+
+Name | Purpose | Required | Verify | Notes
+--- | --- | --- | --- | ---
+bun | Run internal scripts. | yes | bun --version | -
+unzip | List and extract ZIP model archives safely. | yes | unzip -v | -
+PrusaSlicer CLI | Slice STL to G-code. | yes | PATH: `prusa-slicer --help`<br>OR PRUSA_SLICER_BIN: `test -n "$PRUSA_SLICER_BIN" && "$PRUSA_SLICER_BIN" --help`<br>OR macOS app default: `test -x /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer && /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer --help` | Supply PrusaSlicer either on PATH as prusa-slicer, via PRUSA_SLICER_BIN, or with --prusa-slicer when running slice/convert.
+agent-browser | Optional Thingiverse browser fallback when direct ZIP download fails. | no | agent-browser --help | -
+
+### Internal tools
+
+Name | Command | Purpose | Verify
+--- | --- | --- | ---
+convert | `workflow/01A-convert.sh <source>` | Step 1A: Preferred one-shot import/list/slice/preview wrapper. | -
+import | `workflow/01B-import.sh <source>` | Step 1B: Alternate/manual import/download/extract/discover wrapper. | -
+list | `workflow/02-list.sh <id>` | Step 2: List discovered STLs. | -
+slice | `workflow/03-slice.sh <id>` | Step 3: Slice selected STL. | -
+preview | `workflow/04-preview.sh <id>` | Step 4: Regenerate/check G-code previews. | -
+
+### Services
+
+None declared.
+
+### Local config
+
+None declared.
+
+### Environment variables
+
+Name | Purpose | Required | Secret?
+--- | --- | --- | ---
+PRUSA_SLICER_BIN | Optional override for PrusaSlicer binary path. | no | no
+
+### Filesystem paths
+
+Path | Purpose | Required | Git policy
+--- | --- | --- | ---
+projects/archive/ | Ignored local evidence archive. | yes | tracked only as .gitkeep; contents ignored
+settings.json:slicer.profileRoot | Checked-in approved PrusaSlicer profiles. | yes | tracked
+/Volumes/3D_PRINTS | Optional already-mounted external G-code destination. | no | external; do not manage mount
+
+### Tracked assets
+
+Path | Purpose | Required | Git policy
+--- | --- | --- | ---
+settings.json | Editable non-secret workflow settings. | yes | tracked
+.env.example | Example optional environment variables without values. | yes | tracked example only
+tools/stl-to-gcode/tool-config/prusa-slicer/ender3-v2-neo/*.ini | Approved PrusaSlicer internal tool config profiles. | yes | tracked
+
+### Generated artifacts
+
+Path | Purpose | Git policy
+--- | --- | ---
+projects/*/todo/ | Raw imported model files. | ignored
+projects/*/in-process/ | Extracted/intermediate model files and metadata. | ignored
+projects/*/done/ | Generated G-code and previews before external publish. | ignored
+projects/*/evidence/ | Local job evidence, ignored because it can contain private paths/source URLs. | ignored
+projects/archive/* | Archived local evidence after cleanup. | ignored
+
+
+## Startup dependency check
+
+### Required
+
+- [ ] bun: `bun --version`
+- [ ] unzip: `unzip -v`
+- [ ] PrusaSlicer CLI: PATH: `prusa-slicer --help` OR PRUSA_SLICER_BIN: `test -n "$PRUSA_SLICER_BIN" && "$PRUSA_SLICER_BIN" --help` OR macOS app default: `test -x /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer && /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer --help`
+- [ ] Path available: `projects/archive/`
+- [ ] Path available: `settings.json:slicer.profileRoot`
+
+### Optional
+
+- [ ] agent-browser: `agent-browser --help`
+- [ ] Environment variable set if used: `PRUSA_SLICER_BIN`
+- [ ] Path available if used: `/Volumes/3D_PRINTS`
+
+## Processing model
+
+- Project root: `projects`
+- Archive root: `projects/archive`
+- Files being processed location: **internal**
+- Never commit files being processed: **yes**
+
+### Internal processing stages
+
+- `todo/`
+- `in-process/`
+- `done/`
+
+### External processing paths
+
+- None declared
+
+### Evidence
+
+- Enabled: **yes**
+- Commit policy: ignored by default
+- Archive after completion: **yes**
+
+Evidence files:
+
+- manifest.json
+- events.log
+- decisions.md
+- outputs.json
+- cleanup.json
+
+### Cleanup
+
+- After publish: **yes**
+- Remove/trash processing files: **yes**
+- Preserve evidence only: **yes**
+
+## Workflow steps
+
+### Step 0 — Verify dependencies and settings
+
+Run this before operating the workflow. Fix missing required dependencies before continuing.
+
+```bash
+utilities/doctor.sh
+```
+
+### Step 1A — Preferred one-shot conversion
+
+Preferred path: import, list, slice, and preview in one command.
+
+```bash
+workflow/01A-convert.sh <source>
+```
+
+### Step 1B — Manual import path
+
+Alternate path when the user wants import/list/slice separated.
+
+```bash
+workflow/01B-import.sh <source>
+```
+
+### Step 2 — List discovered STLs
+
+List discovered STL files and printability. If multiple printable STLs exist, ask the user which index to use.
+
+```bash
+workflow/02-list.sh <id>
+```
+
+### Step 3 — Slice selected STL
+
+Slice the selected STL with an approved profile.
+
+```bash
+workflow/03-slice.sh <id> [--stl <index>] [--profile pla-normal]
+```
+
+### Step 4 — Generate/check previews
+
+Regenerate/check SVG previews from generated G-code.
+
+```bash
+workflow/04-preview.sh <id>
+```
+
+### Step 5 — Publish, clean up, and archive evidence
+
+LLM-operated judgment step: if an external destination is already available, copy final G-code there, verify it exists, remove/trash processing files, and preserve/archive evidence only.
+
+## Utilities
+
+- `utilities/doctor.sh` — Verify workflow dependencies, internal tool root, slicer config, and optional settings.
+
+## STL workflow details
+
+Prefer the one-shot command:
+
+```bash
+workflow/01A-convert.sh <source>
+workflow/01A-convert.sh <source> --stl <index>
+workflow/01A-convert.sh <source> --profile pla-fine
+```
+
+If PrusaSlicer is not on PATH, supply it with either `PRUSA_SLICER_BIN` or `--prusa-slicer /path/to/prusa-slicer`.
+
+If multiple printable STLs are found, do not guess. Show the list to the user and ask which STL index to use.
+
+After a successful slice, report the G-code and preview paths under `projects/<id>/done/`. If the external destination is already available, copy only the final G-code there; do not mount or manage removable media.
+
+## IDs, settings, and validation
+
+IDs are intentionally simple:
+
+- Thingiverse URL: `<model-name>-thing-<number>`
+- Local file: sanitized filename without extension
+- Other URL: sanitized URL basename plus a short hash
+
+The checked-in PrusaSlicer tool config root is defined by `settings.json:slicer.profileRoot`. Do not duplicate that editable path elsewhere.
+
+The scripts validate STL discovery, ASCII/binary STL parseability, non-empty geometry, build-volume fit, and safe ZIP paths before extraction.
+
+## Thingiverse behavior
+
+Thingiverse support is best-effort via the direct ZIP endpoint first. If that returns HTML instead of a ZIP, the importer may fall back to `agent-browser` to click the visible STL download button. If both approaches fail, ask the user to manually download the ZIP/STL and rerun `workflow/01A-convert.sh <downloaded-file>`.
 
 ## Hard boundaries
 
 - Do not communicate with the printer.
 - Do not mount, unmount, format, erase, or otherwise manage SD cards.
-- Do not write anything except final `.gcode` files, and only to an already-mounted `3D_PRINTS` volume.
 - Do not use OctoPrint.
-- Do not build slicing logic.
-- Do not invent slicing settings dynamically.
-- Use PrusaSlicer CLI and checked-in profiles only.
+- Do not build or invent slicing settings dynamically; use checked-in profiles only.
+- Never commit model inputs, generated G-code, previews, or private evidence.
 
 ## Standard workflow
 
-### Step 1 — Import and slice
+- Run startup dependency checks.
+- Import source into projects/<id>/todo and extract/process under projects/<id>/in-process.
+- List discovered STLs and ask the user if more than one printable STL is found.
+- Slice with the selected checked-in profile and write G-code/previews to projects/<id>/done.
+- If /Volumes/3D_PRINTS is already mounted, copy the final G-code there; otherwise report the local output path.
+- After external publish is verified, remove processing files and archive evidence only.
 
-Prefer the one-shot command:
+## Fallback workflow
 
-```bash
-bun run convert <source>
-bun run convert <source> --stl <index>
-bun run convert <source> --profile pla-fine
-```
+- If PrusaSlicer is not on PATH, use PRUSA_SLICER_BIN or --prusa-slicer.
+- If direct Thingiverse ZIP download fails, use agent-browser fallback when available.
+- If browser fallback fails, ask the user to manually download the STL/ZIP and rerun convert.
 
-If PrusaSlicer is not named `prusa-slicer`, pass the binary explicitly:
+## Safety rules
 
-```bash
-bun run convert <source> --prusa-slicer /path/to/prusa-slicer
-```
+- Never commit files being processed.
+- Use safe ZIP extraction and reject unsafe archive paths.
+- Validate STL parseability, geometry, and build volume before slicing.
+- Evidence is local and ignored by default.
 
-On macOS with Homebrew cask PrusaSlicer, the binary is usually:
+## Known limitations
 
-```text
-/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer
-```
+- Thingiverse support is best-effort.
+- Preview SVGs are sanity checks parsed from G-code and do not replace slicer/printer validation.
 
-### Step 2 — If multiple printable STLs are found
+## Git and credential policy
 
-Do not guess. Show the list to the user and ask which STL index to use, or rerun with:
-
-```bash
-bun run convert <source> --stl <index>
-```
-
-### Step 3 — Confirm local G-code and preview output
-
-After a successful slice, the final G-code plus top-down and isometric SVG previews should exist at:
-
-```text
-projects/<id>/done/<id>-<profile>.gcode
-projects/<id>/done/<id>-<profile>-preview.svg
-projects/<id>/done/<id>-<profile>-preview-isometric.svg
-```
-
-Report all paths to the user. The previews are for sanity checking only; they parse extrusion moves from the generated G-code and do not replace slicer/printer validation.
-
-### Step 4 — Copy to `3D_PRINTS` if already mounted
-
-Check whether the volume is mounted:
-
-```bash
-test -d /Volumes/3D_PRINTS
-```
-
-If `/Volumes/3D_PRINTS` exists, copy only the final `.gcode` file:
-
-```bash
-cp projects/<id>/done/<id>-<profile>.gcode /Volumes/3D_PRINTS/
-```
-
-Then report the copied path:
-
-```text
-/Volumes/3D_PRINTS/<id>-<profile>.gcode
-```
-
-If `/Volumes/3D_PRINTS` is not mounted, do not mount it. Leave the `.gcode` in `projects/<id>/done/` and tell the user the volume was not mounted.
-
-## Two-step workflow
-
-Use this when the user wants import/list/slice separated:
-
-```bash
-bun run import <source>
-bun run list <id>
-bun run slice <id>
-bun run slice <id> --stl <index>
-bun run preview <id>
-```
-
-If PrusaSlicer is not named `prusa-slicer`:
-
-```bash
-PRUSA_SLICER_BIN=/path/to/prusa-slicer bun run slice <id>
-bun run slice <id> --prusa-slicer /path/to/prusa-slicer
-```
-
-## Code layout
-
-No build step. No `dist/`.
-
-```text
-app/
-  scripts/   runnable Bun scripts
-  lib/       shared helpers
-profiles/   PrusaSlicer profiles
-projects/   per-model project folders
-```
-
-## Output
-
-Each source gets a project folder:
-
-```text
-projects/<id>/
-  todo/        original STL/ZIP/download
-  in-process/  extracted files and metadata
-  done/        final G-code
-```
-
-Final G-code and preview files go in:
-
-```text
-projects/<id>/done/<id>-<profile>.gcode
-projects/<id>/done/<id>-<profile>-preview.svg
-projects/<id>/done/<id>-<profile>-preview-isometric.svg
-```
-
-Import/extraction metadata goes in:
-
-```text
-projects/<id>/in-process/
-```
-
-Generated project files under `projects/` are ignored by git.
-
-## IDs
-
-- Thingiverse: `<model-name>-thing-<number>` (model name is read from the Thingiverse page title and sanitized)
-- Local file: sanitized filename without extension
-- Other URL: sanitized basename plus short hash
-
-## Profiles
-
-Profiles live in:
-
-```text
-profiles/ender3-v2-neo/
-  pla-normal.ini
-  pla-draft.ini
-  pla-fine.ini
-```
-
-Default profile: `pla-normal`.
-
-Target printer assumptions:
-
-- Creality Ender-3 V2 Neo
-- Marlin
-- 220 x 220 x 250 mm build volume
-- 0.4 mm nozzle
-- Bowden extruder
-- PLA-focused
-
-## Validation
-
-The scripts validate:
-
-- STL discovery
-- ASCII/binary STL parseability
-- non-empty geometry
-- model bounds within `220 x 220 x 250 mm`
-- safe ZIP entry paths before extraction
-
-If multiple printable STL files are found, do not guess. Use `--stl <index>` only after the user chooses.
-
-## Thingiverse
-
-Thingiverse support is best-effort via:
-
-```text
-https://www.thingiverse.com/thing:<id>/zip
-```
-
-If that endpoint returns HTML instead of a ZIP, the importer may fall back to headless `agent-browser` to click the visible STL download button. If both approaches fail, tell the user to download the ZIP/STL manually in a browser and run:
-
-```bash
-bun run convert ~/Downloads/model.zip
-```
+- Never commit credentials, tokens, API keys, cookies, service config, or environment files.
+- Never commit files being processed.
+- Evidence and archive data are ignored by default because they may contain private paths, names, URLs, or decisions.
+- Commit only workflow instructions, internal tooling, templates, checked-in profiles/configs, and sanitized examples.

@@ -10,23 +10,29 @@
 secrets/
 credentials/
 config.local.*
-
+*cookies*.txt
 # Dependencies / build outputs
 node_modules/
 dist/
 build/
 coverage/
-
 # Runtime scratch/logs
 tmp/
 .temp/
 cache/
 logs/
 *.log
-
-# User/imported model projects and generated G-code
-projects/*
+# Workflow processing files — never commit files being processed
+projects/*/todo/
+projects/*/in-process/
+projects/*/done/
+projects/*/evidence/
 !projects/.gitkeep
+# Local evidence archive may contain private details
+projects/archive/*
+!projects/archive/.gitkeep
+# Declared generated artifacts
 *.gcode
 *.stl
 *.3mf
+*.zip

@@ -1,0 +1,24 @@
+{
+  "printer": {
+    "name": "Creality Ender-3 V2 Neo",
+    "buildVolume": {
+      "x": 220,
+      "y": 220,
+      "z": 250
+    }
+  },
+  "internalTools": {
+    "stlToGcode": {
+      "root": "tools/stl-to-gcode"
+    }
+  },
+  "slicer": {
+    "tool": "PrusaSlicer",
+    "defaultProfile": "pla-normal",
+    "profileRoot": "tools/stl-to-gcode/tool-config/prusa-slicer/ender3-v2-neo",
+    "binaryEnv": "PRUSA_SLICER_BIN"
+  },
+  "externalDestinations": {
+    "sdCardVolume": "/Volumes/3D_PRINTS"
+  }
+}

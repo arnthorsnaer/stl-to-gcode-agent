@@ -5,11 +5,11 @@
   "private": true,
   "description": "Small Bun scripts for turning local STL/ZIP or direct URLs into Ender-3 V2 Neo G-code with PrusaSlicer.",
   "scripts": {
-    "import": "bun app/scripts/import.ts",
-    "slice": "bun app/scripts/slice.ts",
-    "convert": "bun app/scripts/convert.ts",
-    "preview": "bun app/scripts/preview.ts",
-    "list": "bun app/scripts/list.ts"
+    "import": "bun app/cli/import.ts",
+    "slice": "bun app/cli/slice.ts",
+    "convert": "bun app/cli/convert.ts",
+    "preview": "bun app/cli/preview.ts",
+    "list": "bun app/cli/list.ts"
   },
   "engines": {
     "bun": ">=1.1.0"
