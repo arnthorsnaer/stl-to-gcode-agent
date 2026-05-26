@@ -1,5 +1,7 @@
 # stl-to-gcode-agent
 
+_Created with [workflow-agent-factory](https://github.com/arnthorsnaer/workflow-agent-factory)._ 
+
 Workflow agent for converting STL/ZIP/Thingiverse inputs into local G-code for a Creality Ender-3 V2 Neo using checked-in PrusaSlicer profiles.
 
 ## Quick start
