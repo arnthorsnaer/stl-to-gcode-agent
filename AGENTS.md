@@ -9,6 +9,12 @@ Workflow agent for converting STL/ZIP/Thingiverse inputs into local G-code for a
 - Slice the selected printable STL with an approved checked-in profile.
 - Publish the final G-code to an external destination only when available, then clean processing files and preserve ignored evidence.
 
+## Intake rule
+
+If the user starts a new project without providing an input, immediately ask for the model source: a local `.stl`/`.zip` path or a supported model URL. Optionally ask for a slicer profile if they care; otherwise use the default checked-in profile.
+
+Once provided, run `workflow/01A-convert.sh <source>`. Do not proceed without a source.
+
 ## Dependencies
 
 All dependencies are explicit. Internal and external tools are both first-class dependencies. Secret-bearing config must come from untracked local files or environment variables.
