@@ -1,4 +1,4 @@
-# stl-to-gcode-agent — Agent Operating Guide
+# stl-to-gcode — Agent Operating Guide
 
 Workflow agent for converting STL/ZIP/Thingiverse inputs into local G-code for a Creality Ender-3 V2 Neo using checked-in PrusaSlicer profiles.
 

@@ -1,7 +1,7 @@
 {
   "_generated": true,
   "_note": "Generated metadata for traceability only. Do not edit. Runtime/user-editable settings live in settings.json and tool-config/.",
-  "name": "stl-to-gcode-agent",
+  "name": "stl-to-gcode",
   "description": "Workflow agent for converting STL/ZIP/Thingiverse inputs into local G-code for a Creality Ender-3 V2 Neo using checked-in PrusaSlicer profiles.",
   "mission": [
     "Import local STL/ZIP files or supported URLs.",
@@ -218,23 +218,23 @@
   "scaffold": {
     "copy": [
       {
-        "from": "../../stl-to-gcode-agent/app/lib",
+        "from": "../../stl-to-gcode/app/lib",
         "to": "tools/stl-to-gcode/app/lib"
       },
       {
-        "from": "../../stl-to-gcode-agent/app/scripts",
+        "from": "../../stl-to-gcode/app/scripts",
         "to": "tools/stl-to-gcode/app/cli"
       },
       {
-        "from": "../../stl-to-gcode-agent/profiles/ender3-v2-neo",
+        "from": "../../stl-to-gcode/profiles/ender3-v2-neo",
         "to": "tools/stl-to-gcode/tool-config/prusa-slicer/ender3-v2-neo"
       },
       {
-        "from": "../../stl-to-gcode-agent/package.json",
+        "from": "../../stl-to-gcode/package.json",
         "to": "tools/stl-to-gcode/package.json"
       },
       {
-        "from": "../../stl-to-gcode-agent/package-lock.json",
+        "from": "../../stl-to-gcode/package-lock.json",
         "to": "tools/stl-to-gcode/package-lock.json"
       }
     ],
